@@ -1,4 +1,7 @@
-from django.db.backends import BaseDatabaseClient
+try:
+    from django.db.backends import BaseDatabaseClient
+except:
+    from django.db.backends.base.client import BaseDatabaseClient
 import os
 import sys
 

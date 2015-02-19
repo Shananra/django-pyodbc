@@ -23,11 +23,17 @@ if pyodbc_ver < (2, 0, 38, 9999):
     raise ImproperlyConfigured("pyodbc 2.0.38 or newer is required; you have %s" % Database.version)
 
 from django.db import utils
-from django.db.backends import BaseDatabaseWrapper, BaseDatabaseFeatures, BaseDatabaseValidation
+from django.db.backends.base.base import BaseDatabaseWrapper
+from django.db.backends.base.features import BaseDatabaseFeatures
+from django.db.backends.base.validation import BaseDatabaseValidation
 from django.db.backends.signals import connection_created
 from django.conf import settings
 from django import VERSION as DjangoVersion
-if DjangoVersion[:2] == (1, 7):
+if DjangoVersion[:2] == (1,9):
+    _DJANGO_VERSION = 19
+elif DjangoVersion[:2] == (1,8):
+    _DJANGO_VERSION = 18
+elif DjangoVersion[:2] == (1, 7):
     _DJANGO_VERSION = 17
 elif DjangoVersion[:2] == (1, 6):
     _DJANGO_VERSION = 16
@@ -47,6 +53,7 @@ from django_pyodbc.client import DatabaseClient
 from django_pyodbc.compat import binary_type, text_type, timezone
 from django_pyodbc.creation import DatabaseCreation
 from django_pyodbc.introspection import DatabaseIntrospection
+from .schema import DatabaseSchemaEditor
 
 DatabaseError = Database.Error
 IntegrityError = Database.IntegrityError
@@ -83,6 +90,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
     unicode_results = False
     datefirst = 7
     Database = Database
+    SchemaEditorClass = DatabaseSchemaEditor
 
     # Collations:       http://msdn2.microsoft.com/en-us/library/ms184391.aspx
     #                   http://msdn2.microsoft.com/en-us/library/ms179886.aspx
@@ -116,6 +124,32 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         'iregex': 'LIKE %s',
 
         # TODO: freetext, full-text contains...
+    }
+    data_types = {
+        'AutoField': 'int',
+        'BinaryField': 'binary',
+        'BooleanField': 'tinyint',
+        'CharField': 'varchar(%(max_length)s)',
+        'CommaSeparatedIntegerField': 'varchar(%(max_length)s)',
+        'DateField': 'date',
+        'DateTimeField': 'timestamp',
+        'DecimalField': 'decimal',
+        'FileField': 'varbinary',
+        'FilePathField': 'varchar(%(max_length)s)',
+        'FloatField': 'float',
+        'IntegerField': 'int',
+        'BigIntegerField': 'bigint',
+        'IPAddressField': 'varchar(64)',
+        'GenericIPAddressField': 'varchar(64)',
+        'NullBooleanField': 'tinyint',
+        'OneToOneField': 'int',
+        'PositiveIntegerField': 'int',
+        'PositiveSmallIntegerField': 'smallint',
+        'SlugField': 'varchar(%(max_length)s)',
+        'SmallIntegerField': 'smallint',
+        'TextField': 'text',
+        'TimeField': 'timestamp',
+        'UUIDField': 'varchar(36)',
     }
 
     def __init__(self, *args, **kwargs):
@@ -281,6 +315,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
             else:
                 self.connection = Database.connect(connstr, \
                         autocommit=autocommit)
+            self.connection.autocommit = autocommit
             connection_created.send(sender=self.__class__, connection=self)
 
         cursor = self.connection.cursor()
@@ -413,6 +448,12 @@ class CursorWrapper(object):
         sql = self.format_sql(sql, len(params))
         params = self.format_params(params)
         self.last_params = params
+        print(sql)
+        try:
+            sql = sql.decode('utf-8','ignore')
+        except AttributeError:
+            sql = str(sql)
+            pass
         try:
             return self.cursor.execute(sql, params)
         except IntegrityError:

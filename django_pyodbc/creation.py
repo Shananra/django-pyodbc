@@ -1,7 +1,10 @@
 import base64
 import random
 
-from django.db.backends.creation import BaseDatabaseCreation
+try:
+    from django.db.backends.creation import BaseDatabaseCreation
+except:
+    from django.db.backends.base.creation import BaseDatabaseCreation
 
 from django_pyodbc.compat import b, md5_constructor
 

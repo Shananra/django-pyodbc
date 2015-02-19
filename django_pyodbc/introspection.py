@@ -1,4 +1,7 @@
-from django.db.backends import BaseDatabaseIntrospection
+try:
+    from django.db.backends import BaseDatabaseIntrospection
+except ImportError:
+    from django.db.backends.base.introspection import BaseDatabaseIntrospection
 import pyodbc as Database
 
 SQL_AUTOFIELD = -777555
@@ -39,7 +42,8 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
         # TABLES: http://msdn2.microsoft.com/en-us/library/ms186224.aspx
 
         cursor.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'")
-        return [row[0] for row in cursor.fetchall()]
+        result = [retTable(row[0]) for row in cursor.fetchall()]
+        return result
 
         # Or pyodbc specific:
         #return [row[2] for row in cursor.tables(tableType='TABLE')]
@@ -206,3 +210,8 @@ where
         key_columns.extend([(source_column, target_table, target_column) \
             for source_column, target_table, target_column in relations])
         return key_columns
+
+class retTable(object):
+    def __init__(self,name):
+        self.type = 't'
+        self.name = name

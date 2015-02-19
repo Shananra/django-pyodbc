@@ -1,9 +1,14 @@
 import re
 from django.db.models.sql import compiler
 import django
+from django.db.models.sql.constants import (
+    CURSOR, GET_ITERATOR_CHUNK_SIZE, MULTI, NO_RESULTS, ORDER_DIR, SINGLE,
+)
 from datetime import datetime
 
 from django_pyodbc.compat import zip_longest
+from django.db.models.sql.compiler import cursor_iter
+from django.db.models.sql.datastructures import EmptyResultSet
 
 REV_ODIR = {
     'ASC': 'DESC',
@@ -133,6 +138,7 @@ class SQLCompiler(compiler.SQLCompiler):
     def as_sql(self, with_limits=True, with_col_aliases=False):
         # Django #12192 - Don't execute any DB query when QS slicing results in limit 0
         if with_limits and self.query.low_mark == self.query.high_mark:
+            print("returning nothing")
             return '', ()
         
         self._fix_aggregates()
@@ -140,6 +146,13 @@ class SQLCompiler(compiler.SQLCompiler):
         self._using_row_number = False
         
         # Get out of the way if we're not a select query or there's no limiting involved.
+        if self.query.high_mark == None:
+            print("SETTING HIGH MARK YO!!!")
+            if "WHERE" in str(self.query):
+                self.query.high_mark = 1
+            else:
+                self.query.high_mark = 1000
+        self.query._mssql_ordering_not_allowed = True
         check_limits = with_limits and (self.query.low_mark or self.query.high_mark is not None)
         if not check_limits:
             # The ORDER BY clause is invalid in views, inline functions, 
@@ -248,6 +261,9 @@ class SQLCompiler(compiler.SQLCompiler):
                     right_sql_quote=self.connection.ops.right_sql_quote,
                 )
         else:
+            print("second select")
+            print(isinstance(row_num_col,str))
+            print(row_num_col)
             sql = "SELECT {row_num_col}, {outer} FROM ( SELECT ROW_NUMBER() OVER ( ORDER BY {order}) as {row_num_col}, {inner}) as QQQ where {where}".format(
                 outer=outer_fields,
                 order=order,
@@ -388,6 +404,73 @@ class SQLCompiler(compiler.SQLCompiler):
                 return (None, [])
             return (None, [], [])
         return super(SQLCompiler, self).get_ordering()
+
+    def execute_sql(self, result_type=MULTI):
+        """
+        Run the query against the database and returns the result(s). The
+        return value is a single data item if result_type is SINGLE, or an
+        iterator over the results if the result_type is MULTI.
+
+        result_type is either MULTI (use fetchmany() to retrieve all rows),
+        SINGLE (only retrieve a single row), or None. In this last case, the
+        cursor is returned if any query is executed, since it's used by
+        subclasses such as InsertQuery). It's possible, however, that no query
+        is needed, as the filters describe an empty set. In that case, None is
+        returned, to avoid any unnecessary database interaction.
+        """
+        if not result_type:
+            result_type = NO_RESULTS
+        try:
+            sql, params = self.as_sql()
+            if not sql:
+                raise EmptyResultSet
+        except EmptyResultSet:
+            if result_type == MULTI:
+                return iter([])
+            else:
+                return
+
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute(sql, params)
+        except Exception:
+            cursor.close()
+            raise
+
+        if result_type == CURSOR:
+            # Caller didn't specify a result_type, so just give them back the
+            # cursor to process (and close).
+            return cursor
+        if result_type == SINGLE:
+            try:
+                val = cursor.fetchone()
+                if val:
+                    return val[0:self.col_count]
+                return val
+            finally:
+                # done with the cursor
+                cursor.close()
+        if result_type == NO_RESULTS:
+            cursor.close()
+            return
+
+        result = cursor_iter(
+            cursor, self.connection.features.empty_fetchmany_value,
+            self.col_count
+        )
+        if not self.connection.features.can_use_chunked_reads:
+            try:
+                # If we are using non-chunked reads, we return the same data
+                # structure as normally, but ensure it is all read into memory
+                # before going any further.
+                return list(result)
+            finally:
+                # done with the cursor
+                try:
+                    cursor.close()
+                except:
+                    pass
+        return result
 
 
 
@@ -587,8 +670,8 @@ class SQLAggregateCompiler(compiler.SQLAggregateCompiler, SQLCompiler):
         self._fix_aggregates()
         return super(SQLAggregateCompiler, self).as_sql(qn=qn)
 
-class SQLDateCompiler(compiler.SQLDateCompiler, SQLCompiler):
-    pass
+#class SQLDateCompiler(compiler.SQLDateCompiler, SQLCompiler):
+#    pass
 
-class SQLDateTimeCompiler(compiler.SQLDateCompiler, SQLCompiler):
-    pass
+#class SQLDateTimeCompiler(compiler.SQLDateCompiler, SQLCompiler):
+#    pass
