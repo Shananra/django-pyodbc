@@ -138,7 +138,6 @@ class SQLCompiler(compiler.SQLCompiler):
     def as_sql(self, with_limits=True, with_col_aliases=False):
         # Django #12192 - Don't execute any DB query when QS slicing results in limit 0
         if with_limits and self.query.low_mark == self.query.high_mark:
-            print("returning nothing")
             return '', ()
         
         self._fix_aggregates()
@@ -147,7 +146,6 @@ class SQLCompiler(compiler.SQLCompiler):
         
         # Get out of the way if we're not a select query or there's no limiting involved.
         if self.query.high_mark == None:
-            print("SETTING HIGH MARK YO!!!")
             if "WHERE" in str(self.query):
                 self.query.high_mark = 1
             else:
@@ -261,9 +259,6 @@ class SQLCompiler(compiler.SQLCompiler):
                     right_sql_quote=self.connection.ops.right_sql_quote,
                 )
         else:
-            print("second select")
-            print(isinstance(row_num_col,str))
-            print(row_num_col)
             sql = "SELECT {row_num_col}, {outer} FROM ( SELECT ROW_NUMBER() OVER ( ORDER BY {order}) as {row_num_col}, {inner}) as QQQ where {where}".format(
                 outer=outer_fields,
                 order=order,

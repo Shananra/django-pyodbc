@@ -448,7 +448,9 @@ class CursorWrapper(object):
         sql = self.format_sql(sql, len(params))
         params = self.format_params(params)
         self.last_params = params
-        print(sql)
+        if hasattr(settings,'DATABASE_DEBUG'):
+            if settings.DATABASE_DEBUG:
+                print(sql)
         try:
             sql = sql.decode('utf-8','ignore')
         except AttributeError:
