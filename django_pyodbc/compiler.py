@@ -118,7 +118,7 @@ class SQLCompiler(compiler.SQLCompiler):
         match behavior of other django backends, it needs to not drop remainders.
         E.g. AVG([1, 2]) needs to yield 1.5, not 1
         """
-        for alias, aggregate in self.query.aggregate_select.items():
+        for alias, aggregate in list(self.query.aggregate_select.items()):
             if aggregate.sql_function == 'AVG':# and self.connection.cast_avg_to_float:
                 # Embed the CAST in the template on this query to
                 # maintain multi-db support.

@@ -39,8 +39,8 @@ try:
 except ImportError:
     b = lambda s: s
     binary_type = str
-    string_types = basestring
-    text_type = unicode
+    string_types = str
+    text_type = str
 
 try:
     from django.utils._os import upath
@@ -56,10 +56,10 @@ try:
         from itertools import zip_longest
     else:
         # Python2.6 or 2.7
-        from itertools import izip_longest as zip_longest
+        from itertools import zip_longest as zip_longest
 except ImportError:
     # Python2.5 or earlier
-    from itertools import chain, izip, repeat
+    from itertools import chain, repeat
     # derived from Python2.7 documentation
     def zip_longest(*args, **kwds):
         # izip_longest('ABCD', 'xy', fillvalue='-') --> Ax By C- D-
@@ -69,7 +69,7 @@ except ImportError:
         fillers = repeat(fillvalue)
         iters = [chain(it, sentinel(), fillers) for it in args]
         try:
-            for tup in izip(*iters):
+            for tup in zip(*iters):
                 yield tup
         except IndexError:
             pass

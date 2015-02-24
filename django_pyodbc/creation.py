@@ -96,7 +96,7 @@ class DatabaseCreation(BaseDatabaseCreation):
                 cursor.execute("ALTER TABLE %s DROP CONSTRAINT %s" % objs)
             for table in self.connection.introspection.get_table_list(cursor):
                 if verbosity >= 1:
-                    print("Dropping table %s" % table)
+                    print(("Dropping table %s" % table))
                 cursor.execute('DROP TABLE %s' % qn(table))
             self.connection.connection.commit()
             return test_name
@@ -126,7 +126,7 @@ class DatabaseCreation(BaseDatabaseCreation):
                 test_db_repr = ''
                 if verbosity >= 2:
                     test_db_repr = " ('%s')" % test_database_name
-                print("The database is left undestroyed%s." % test_db_repr)
+                print(("The database is left undestroyed%s." % test_db_repr))
 
         self.connection.close()
 

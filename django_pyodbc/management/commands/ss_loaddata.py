@@ -95,7 +95,7 @@ class Command(BaseCommand):
                 compression_formats = [parts[-1]]
                 parts = parts[:-1]
             else:
-                compression_formats = compression_types.keys()
+                compression_formats = list(compression_types.keys())
 
             if len(parts) == 1:
                 fixture_name = parts[0]
@@ -109,7 +109,7 @@ class Command(BaseCommand):
 
             if formats:
                 if verbosity > 1:
-                    print "Loading '%s' fixtures..." % fixture_name
+                    print(("Loading '%s' fixtures..." % fixture_name))
             else:
                 self.enable_forward_ref_checks(cursor)
                 sys.stderr.write(
@@ -126,7 +126,7 @@ class Command(BaseCommand):
 
             for fixture_dir in fixture_dirs:
                 if verbosity > 1:
-                    print "Checking %s for fixtures..." % humanize(fixture_dir)
+                    print(("Checking %s for fixtures..." % humanize(fixture_dir)))
 
                 label_found = False
                 for format in formats:
@@ -138,8 +138,8 @@ class Command(BaseCommand):
                             file_name = '.'.join([fixture_name, format])
 
                         if verbosity > 1:
-                            print "Trying %s for %s fixture '%s'..." % \
-                                (humanize(fixture_dir), file_name, fixture_name)
+                            print(("Trying %s for %s fixture '%s'..." % \
+                                (humanize(fixture_dir), file_name, fixture_name)))
                         full_path = os.path.join(fixture_dir, file_name)
                         open_method = compression_types[compression_format]
                         try:
@@ -147,8 +147,8 @@ class Command(BaseCommand):
                             if label_found:
                                 fixture.close()
                                 self.enable_forward_ref_checks(cursor)
-                                print self.style.ERROR("Multiple fixtures named '%s' in %s. Aborting." %
-                                    (fixture_name, humanize(fixture_dir)))
+                                print((self.style.ERROR("Multiple fixtures named '%s' in %s. Aborting." %
+                                    (fixture_name, humanize(fixture_dir)))))
                                 transaction.rollback()
                                 transaction.leave_transaction_management()
                                 return
@@ -156,8 +156,8 @@ class Command(BaseCommand):
                                 fixture_count += 1
                                 objects_in_fixture = 0
                                 if verbosity > 0:
-                                    print "Installing %s fixture '%s' from %s." % \
-                                        (format, fixture_name, humanize(fixture_dir))
+                                    print(("Installing %s fixture '%s' from %s." % \
+                                        (format, fixture_name, humanize(fixture_dir))))
                                 try:
                                     objects = serializers.deserialize(format, fixture)
                                     for obj in objects:
@@ -181,8 +181,8 @@ class Command(BaseCommand):
                                     else:
                                         sys.stderr.write(
                                             self.style.ERROR("Problem installing fixture '%s': %s\n" %
-                                                 (full_path, ''.join(traceback.format_exception(sys.exc_type,
-                                                     sys.exc_value, sys.exc_traceback)))))
+                                                 (full_path, ''.join(traceback.format_exception(sys.exc_info()[0],
+                                                     sys.exc_info()[1], sys.exc_info()[2])))))
                                     return
                                 fixture.close()
 
@@ -197,10 +197,10 @@ class Command(BaseCommand):
                                     transaction.leave_transaction_management()
                                     return
 
-                        except Exception, e:
+                        except Exception as e:
                             if verbosity > 1:
-                                print "No %s fixture '%s' in %s." % \
-                                    (format, fixture_name, humanize(fixture_dir))
+                                print(("No %s fixture '%s' in %s." % \
+                                    (format, fixture_name, humanize(fixture_dir))))
 
         self.enable_forward_ref_checks(cursor)
 
@@ -210,7 +210,7 @@ class Command(BaseCommand):
             sequence_sql = connection.ops.sequence_reset_sql(self.style, models)
             if sequence_sql:
                 if verbosity > 1:
-                    print "Resetting sequences"
+                    print("Resetting sequences")
                 for line in sequence_sql:
                     cursor.execute(line)
 
@@ -220,10 +220,10 @@ class Command(BaseCommand):
 
         if object_count == 0:
             if verbosity > 1:
-                print "No fixtures found."
+                print("No fixtures found.")
         else:
             if verbosity > 0:
-                print "Installed %d object(s) from %d fixture(s)" % (object_count, fixture_count)
+                print(("Installed %d object(s) from %d fixture(s)" % (object_count, fixture_count)))
 
         # Close the DB connection. This is required as a workaround for an
         # edge case in MySQL: if the same connection is used to
